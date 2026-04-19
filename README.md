@@ -52,10 +52,16 @@ Options:
   -f,--force                  Replace any existing signatures
   --entitlements TEXT         Entitlements plist
   --generate-entitlement-der  Embed DER-encoded entitlements alongside the XML blob
+  --timestamp[=none]          Accepted for compatibility; only =none is supported
 ```
 
 Apple's `codesign` embeds DER entitlements by default since macOS 12.0. This
 implementation requires the flag to opt in.
+
+`--timestamp=none` is accepted as a no-op so build tools that pass it can call
+this `codesign` unmodified. Real TSA timestamping is not supported because
+ad-hoc signatures contain no CMS signature for a timestamp authority to
+countersign.
 
 
 ## Example signature
