@@ -26,6 +26,10 @@ struct PlistValue {
 // unsupported types.
 std::shared_ptr<PlistValue> parsePlist(const std::string& xml);
 
+// Parse a plist that may be either XML (`<?xml...`) or binary (`bplist00`).
+// Throws std::runtime_error on malformed input or unsupported types.
+std::shared_ptr<PlistValue> parsePlistAuto(const std::string& bytes);
+
 };
 
 #endif // SIGTOOL_PLIST_H

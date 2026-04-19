@@ -63,6 +63,23 @@ this `codesign` unmodified. Real TSA timestamping is not supported because
 ad-hoc signatures contain no CMS signature for a timestamp authority to
 countersign.
 
+### Bundle signing
+
+`codesign` accepts a path to a `.framework`, `.app`, `.bundle`, or `.xpc`
+directory (or a `Foo.framework/Versions/X` subpath). For bundles it:
+
+  - reads `CFBundleIdentifier` from `Info.plist` (XML or binary plist) as the
+    default signing identifier
+  - walks bundle resources, computes SHA-1 + SHA-256 hashes, and writes
+    `_CodeSignature/CodeResources` matching Apple's default rules
+  - hashes `Info.plist` into CodeDirectory special slot 1
+  - hashes `CodeResources` into CodeDirectory special slot 3
+  - signs the inner Mach-O binary in place
+
+Limitations: nested bundles (`Frameworks/`, `PlugIns/`, `XPCServices/`, ...)
+inside another bundle are not signed recursively. Sign the inner bundles
+first, then sign the outer bundle.
+
 
 ## Example signature
 
