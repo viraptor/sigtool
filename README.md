@@ -26,6 +26,7 @@ Options:
   -f,--file TEXT REQUIRED     Mach-O target file
   -i,--identifier TEXT        File identifier
   -e,--entitlements TEXT      Entitlements plist
+  --generate-entitlement-der  Embed DER-encoded entitlements alongside the XML blob
 
 Subcommands:
   check-requires-signature    Determine if this is a macho file that must be signed
@@ -50,7 +51,11 @@ Options:
   -i,--identifier TEXT        File identifier
   -f,--force                  Replace any existing signatures
   --entitlements TEXT         Entitlements plist
+  --generate-entitlement-der  Embed DER-encoded entitlements alongside the XML blob
 ```
+
+Apple's `codesign` embeds DER entitlements by default since macOS 12.0. This
+implementation requires the flag to opt in.
 
 
 ## Example signature

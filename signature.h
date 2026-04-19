@@ -99,6 +99,20 @@ struct Entitlements : public Blob {
     size_t length() override;
 };
 
+struct EntitlementsDER : public Blob {
+    std::vector<uint8_t> der;
+
+    explicit EntitlementsDER(std::vector<uint8_t> der)
+            : der{std::move(der)} {}
+
+    CSSlot slotType() override {
+        return CSSLOT_ENTITLEMENTS_DER;
+    }
+
+    void emit(std::ostream &os) override;
+    size_t length() override;
+};
+
 // Only empty signatures supported
 struct Signature : public Blob {
     CSSlot slotType() override {

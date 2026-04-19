@@ -11,7 +11,7 @@ find_package(OpenSSL REQUIRED)
 
 set(CMAKE_CXX_STANDARD 11)
 
-add_library(libsigtool macho.cpp signature.cpp hash.cpp commands.cpp)
+add_library(libsigtool macho.cpp signature.cpp hash.cpp commands.cpp plist.cpp der.cpp)
 target_include_directories(libsigtool PUBLIC vendor)
 target_link_libraries(libsigtool PRIVATE OpenSSL::Crypto)
 set_property(TARGET libsigtool PROPERTY OUTPUT_NAME sigtool)
@@ -27,9 +27,11 @@ install(TARGETS sigtool codesign libsigtool)
 install(
   FILES
     commands.h
+    der.h
     emit.h
     hash.h
     macho.h
+    plist.h
     signature.h
   DESTINATION
     include/sigtool

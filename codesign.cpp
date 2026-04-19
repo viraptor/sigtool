@@ -6,11 +6,14 @@ int main(int argc, char **argv) {
 
     std::string identity, identifier, entitlements;
     bool force = false;
+    bool generateEntitlementDer = false;
     std::vector<std::string> files;
     app.add_option("-s,--sign", identity, "Code signing identity")->required();
     app.add_option("-i,--identifier", identifier, "File identifier");
     app.add_flag("-f,--force", force, "Replace any existing signatures");
     app.add_option("--entitlements", entitlements, "Entitlements plist");
+    app.add_flag("--generate-entitlement-der", generateEntitlementDer,
+                 "Embed DER-encoded entitlements alongside the XML blob");
     app.add_option("files", files, "Files to sign");
 
     CLI11_PARSE(app, argc, argv);
@@ -24,6 +27,7 @@ int main(int argc, char **argv) {
             .identifier = identifier,
             .entitlements = entitlements,
             .force = force,
+            .generateEntitlementDer = generateEntitlementDer,
     };
 
     for (const auto &f : files) {

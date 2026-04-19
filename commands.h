@@ -9,12 +9,14 @@ namespace Commands {
         std::string filename;
         std::string identifier;
         std::string entitlements;
+        bool generateEntitlementDer;
     };
 
     struct CodesignOptions {
         std::string identifier;
         std::string entitlements;
         bool force;
+        bool generateEntitlementDer;
     };
 
     int checkRequiresSignature(const std::string &file);
