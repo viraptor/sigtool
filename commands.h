@@ -14,6 +14,7 @@ namespace Commands {
         // slots 1 (Info.plist) and 3 (CodeResources). Empty = unused.
         std::string infoPlistPath;
         std::string codeResourcesPath;
+        bool hardenedRuntime;
     };
 
     struct CodesignOptions {
@@ -21,6 +22,7 @@ namespace Commands {
         std::string entitlements;
         bool force;
         bool generateEntitlementDer;
+        bool hardenedRuntime;
     };
 
     int checkRequiresSignature(const std::string &file);

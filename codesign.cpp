@@ -49,7 +49,7 @@ static int run(int argc, char **argv) {
 
     CLI::App app{"codesign"};
 
-    std::string identity, identifier, entitlements;
+    std::string identity, identifier, entitlements, optionsFlags;
     bool force = false;
     bool generateEntitlementDer = false;
     std::vector<std::string> files;
@@ -59,6 +59,8 @@ static int run(int argc, char **argv) {
     app.add_option("--entitlements", entitlements, "Entitlements plist");
     app.add_flag("--generate-entitlement-der", generateEntitlementDer,
                  "Embed DER-encoded entitlements alongside the XML blob");
+    app.add_option("-o,--options", optionsFlags,
+                   "Comma-separated signing options; only 'runtime' is supported");
     app.add_option("files", files, "Files to sign");
 
     CLI11_PARSE(app, filteredArgc, filteredArgv);
@@ -68,11 +70,31 @@ static int run(int argc, char **argv) {
                 std::string{"Only ad-hoc identities supported, requested: '"} + identity + "'"};
     }
 
+    bool hardenedRuntime = false;
+    if (!optionsFlags.empty()) {
+        size_t start = 0;
+        while (start <= optionsFlags.size()) {
+            size_t comma = optionsFlags.find(',', start);
+            if (comma == std::string::npos) comma = optionsFlags.size();
+            std::string opt = optionsFlags.substr(start, comma - start);
+            if (opt == "runtime") {
+                hardenedRuntime = true;
+            } else if (!opt.empty()) {
+                throw std::runtime_error{
+                        "-o option '" + opt + "' is not supported "
+                        "(only 'runtime' is recognised)"};
+            }
+            if (comma == optionsFlags.size()) break;
+            start = comma + 1;
+        }
+    }
+
     SigTool::Commands::CodesignOptions options{
             .identifier = identifier,
             .entitlements = entitlements,
             .force = force,
             .generateEntitlementDer = generateEntitlementDer,
+            .hardenedRuntime = hardenedRuntime,
     };
 
     for (const auto &f : files) {

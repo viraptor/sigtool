@@ -27,6 +27,7 @@ Options:
   -i,--identifier TEXT        File identifier
   -e,--entitlements TEXT      Entitlements plist
   --generate-entitlement-der  Embed DER-encoded entitlements alongside the XML blob
+  --hardened-runtime          Enable hardened runtime (sets CS_RUNTIME flag)
 
 Subcommands:
   check-requires-signature    Determine if this is a macho file that must be signed
@@ -53,6 +54,7 @@ Options:
   --entitlements TEXT         Entitlements plist
   --generate-entitlement-der  Embed DER-encoded entitlements alongside the XML blob
   --timestamp[=none]          Accepted for compatibility; only =none is supported
+  -o,--options TEXT           Comma-separated signing options (only "runtime" supported)
 ```
 
 Apple's `codesign` embeds DER entitlements by default since macOS 12.0. This
@@ -79,6 +81,13 @@ directory (or a `Foo.framework/Versions/X` subpath). For bundles it:
 Limitations: nested bundles (`Frameworks/`, `PlugIns/`, `XPCServices/`, ...)
 inside another bundle are not signed recursively. Sign the inner bundles
 first, then sign the outer bundle.
+
+### Hardened runtime
+
+`-o runtime` (or `--options=runtime`) enables the hardened runtime: bumps the
+CodeDirectory to v=0x20500, sets the `CS_RUNTIME` flag, and emits the runtime
+field. Other `-o` options (`library`, `kill`, etc.) are not supported and will
+error.
 
 
 ## Example signature

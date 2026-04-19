@@ -19,12 +19,15 @@ static int run(int argc, char **argv) {
 
     std::string file, identifier, entitlements;
     bool generateEntitlementDer = false;
+    bool hardenedRuntime = false;
     app.add_option("-f,--file", file, "Mach-O target file")
             ->required();
     app.add_option("-i,--identifier", identifier, "File identifier");
     app.add_option("-e,--entitlements", entitlements, "Entitlements plist");
     app.add_flag("--generate-entitlement-der", generateEntitlementDer,
                  "Embed DER-encoded entitlements alongside the XML blob");
+    app.add_flag("--hardened-runtime", hardenedRuntime,
+                 "Enable hardened runtime (sets CS_RUNTIME flag)");
 
     app.add_subcommand("check-requires-signature",
                        "Determine if this is a macho file that must be signed");
@@ -49,6 +52,9 @@ static int run(int argc, char **argv) {
             .identifier = identifier,
             .entitlements = entitlements,
             .generateEntitlementDer = generateEntitlementDer,
+            .infoPlistPath = "",
+            .codeResourcesPath = "",
+            .hardenedRuntime = hardenedRuntime,
     };
 
     if (app.got_subcommand("size")) {

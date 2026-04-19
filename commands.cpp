@@ -101,6 +101,10 @@ static SuperBlob signMachO(
         codeDirectory->data.execSegFlags |= CS_EXECSEG_MAIN_BINARY;
     }
 
+    if (options.hardenedRuntime) {
+        codeDirectory->setHardenedRuntime(0);
+    }
+
     auto textSegment = target->getSegment64LoadCommand("__TEXT");
     if (textSegment) {
         codeDirectory->data.execSegBase = textSegment->data.fileoff;
@@ -307,6 +311,7 @@ static void signOneMachO(const Commands::CodesignOptions &options,
                 .generateEntitlementDer = options.generateEntitlementDer,
                 .infoPlistPath = infoPlistPath,
                 .codeResourcesPath = codeResourcesPath,
+                .hardenedRuntime = options.hardenedRuntime,
         }, macho);
 
         arguments.emplace_back("-A");
@@ -369,6 +374,7 @@ static void signOneMachO(const Commands::CodesignOptions &options,
             .generateEntitlementDer = options.generateEntitlementDer,
             .infoPlistPath = infoPlistPath,
             .codeResourcesPath = codeResourcesPath,
+            .hardenedRuntime = options.hardenedRuntime,
     });
 
     if (rename(tempfileName.get(), binaryFile.c_str()) != 0) {
