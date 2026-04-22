@@ -51,10 +51,12 @@ static int run(int argc, char **argv) {
             .filename = file,
             .identifier = identifier,
             .entitlements = entitlements,
+            .entitlementsData = "",
             .generateEntitlementDer = generateEntitlementDer,
             .infoPlistPath = "",
             .codeResourcesPath = "",
             .hardenedRuntime = hardenedRuntime,
+            .runtimeVersion = 0,
     };
 
     if (app.got_subcommand("size")) {

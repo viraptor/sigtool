@@ -49,7 +49,7 @@ static int run(int argc, char **argv) {
 
     CLI::App app{"codesign"};
 
-    std::string identity, identifier, entitlements, optionsFlags;
+    std::string identity, identifier, entitlements, optionsFlags, preserveMetadata;
     bool force = false;
     bool generateEntitlementDer = false;
     std::vector<std::string> files;
@@ -61,6 +61,9 @@ static int run(int argc, char **argv) {
                  "Embed DER-encoded entitlements alongside the XML blob");
     app.add_option("-o,--options", optionsFlags,
                    "Comma-separated signing options; only 'runtime' is supported");
+    app.add_option("--preserve-metadata", preserveMetadata,
+                   "Reuse fields from existing signature; comma-separated list of "
+                   "'identifier', 'entitlements', 'flags'");
     app.add_option("files", files, "Files to sign");
 
     CLI11_PARSE(app, filteredArgc, filteredArgv);
@@ -89,12 +92,37 @@ static int run(int argc, char **argv) {
         }
     }
 
+    bool preserveIdentifier = false;
+    bool preserveEntitlements = false;
+    bool preserveFlags = false;
+    if (!preserveMetadata.empty()) {
+        size_t start = 0;
+        while (start <= preserveMetadata.size()) {
+            size_t comma = preserveMetadata.find(',', start);
+            if (comma == std::string::npos) comma = preserveMetadata.size();
+            std::string key = preserveMetadata.substr(start, comma - start);
+            if (key == "identifier") preserveIdentifier = true;
+            else if (key == "entitlements") preserveEntitlements = true;
+            else if (key == "flags") preserveFlags = true;
+            else if (!key.empty()) {
+                throw std::runtime_error{
+                        "--preserve-metadata key '" + key + "' is not supported "
+                        "(supported: identifier, entitlements, flags)"};
+            }
+            if (comma == preserveMetadata.size()) break;
+            start = comma + 1;
+        }
+    }
+
     SigTool::Commands::CodesignOptions options{
             .identifier = identifier,
             .entitlements = entitlements,
             .force = force,
             .generateEntitlementDer = generateEntitlementDer,
             .hardenedRuntime = hardenedRuntime,
+            .preserveIdentifier = preserveIdentifier,
+            .preserveEntitlements = preserveEntitlements,
+            .preserveFlags = preserveFlags,
     };
 
     for (const auto &f : files) {

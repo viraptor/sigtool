@@ -55,6 +55,8 @@ Options:
   --generate-entitlement-der  Embed DER-encoded entitlements alongside the XML blob
   --timestamp[=none]          Accepted for compatibility; only =none is supported
   -o,--options TEXT           Comma-separated signing options (only "runtime" supported)
+  --preserve-metadata TEXT    Comma-separated list of fields to reuse from the existing
+                              signature (supported: identifier, entitlements, flags)
 ```
 
 Apple's `codesign` embeds DER entitlements by default since macOS 12.0. This
@@ -88,6 +90,22 @@ first, then sign the outer bundle.
 CodeDirectory to v=0x20500, sets the `CS_RUNTIME` flag, and emits the runtime
 field. Other `-o` options (`library`, `kill`, etc.) are not supported and will
 error.
+
+### Preserving existing metadata
+
+`--preserve-metadata=identifier,entitlements,flags` re-signs a binary while
+reusing fields from its existing signature. Supported keys:
+
+  - `identifier` — reuse the existing CodeDirectory identifier (CLI `-i` still
+    wins if both are passed)
+  - `entitlements` — reuse the existing XML entitlements blob
+  - `flags` — preserve `CS_RUNTIME` (and its associated runtime SDK version)
+    from the original signature; other flag bits are not propagated
+
+The binary must already be signed; otherwise `codesign` errors. Other
+`--preserve-metadata` keys (`requirements`, `team-identifier`, `runtime`,
+`resource-rules`, `digest-algorithm`) accepted by Apple's tool are not
+supported and will error.
 
 
 ## Example signature
