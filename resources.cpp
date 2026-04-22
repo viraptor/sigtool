@@ -88,6 +88,63 @@ bool looksLikeBundleSuffix(const std::string& name) {
     return false;
 }
 
+bool isMachOFile(const std::string& path) {
+    std::ifstream f(path, std::ifstream::binary);
+    if (!f.is_open()) return false;
+    unsigned char m[4];
+    f.read(reinterpret_cast<char*>(m), 4);
+    if (f.gcount() != 4) return false;
+    uint32_t magic = (uint32_t(m[0]) << 24) | (uint32_t(m[1]) << 16)
+                     | (uint32_t(m[2]) << 8) | uint32_t(m[3]);
+    return magic == 0xFEEDFACFu // MH_MAGIC_64
+           || magic == 0xCFFAEDFEu // MH_CIGAM_64
+           || magic == 0xCAFEBABEu // FAT_MAGIC
+           || magic == 0xBEBAFECAu; // FAT_CIGAM
+}
+
+// Recursively collect immediate-bundle and any-depth-Mach-O entries under
+// `walkRoot`/`subdir`. Non-bundle subdirectories are descended; loose Mach-O
+// files at any depth are nested entries; non-Mach-O files would require a
+// detached xattr signature and aren't supported here.
+void findNestedIn(const std::string& walkRoot, const std::string& subdir,
+                  std::vector<std::string>& out) {
+    std::string fullDir = walkRoot + "/" + subdir;
+    DIR* d = opendir(fullDir.c_str());
+    if (!d) return;
+    std::vector<std::string> entries;
+    while (auto* ent = readdir(d)) {
+        std::string n = ent->d_name;
+        if (n == "." || n == "..") continue;
+        entries.push_back(n);
+    }
+    closedir(d);
+    std::sort(entries.begin(), entries.end());
+
+    for (const auto& n : entries) {
+        std::string rel = subdir + "/" + n;
+        std::string full = walkRoot + "/" + rel;
+        struct stat st{};
+        if (lstat(full.c_str(), &st) != 0) continue;
+        if (S_ISLNK(st.st_mode)) continue;
+        if (S_ISDIR(st.st_mode)) {
+            if (looksLikeBundleSuffix(n)) {
+                out.push_back(rel);
+            } else {
+                findNestedIn(walkRoot, rel, out);
+            }
+        } else if (S_ISREG(st.st_mode)) {
+            if (isMachOFile(full)) {
+                out.push_back(rel);
+            } else {
+                throw std::runtime_error{
+                        "non-Mach-O file '" + rel + "' under nested-bundle "
+                        "directory needs a detached signature in extended "
+                        "attributes; this is not supported"};
+            }
+        }
+    }
+}
+
 bool isOmitted(const std::string& rel, const std::string& binaryRel,
                bool omitRootInfoPlist) {
     if (rel == binaryRel) return true;
@@ -239,38 +296,9 @@ std::vector<std::string> findNestedBundles(const Bundle& bundle) {
             "XPCServices", "Helpers"};
     for (auto* root : nestedRoots) {
         std::string dirPath = bundle.contentsRoot + "/" + root;
-        DIR* d = opendir(dirPath.c_str());
-        if (!d) continue;
-        std::vector<std::string> children;
-        while (auto* ent = readdir(d)) {
-            std::string n = ent->d_name;
-            if (n == "." || n == "..") continue;
-            children.push_back(n);
-        }
-        closedir(d);
-        std::sort(children.begin(), children.end());
-
-        for (const auto& n : children) {
-            std::string full = dirPath + "/" + n;
-            struct stat st{};
-            if (lstat(full.c_str(), &st) != 0) continue;
-            if (S_ISLNK(st.st_mode)) continue;
-            // Bundle directories (recursively signed) and regular files
-            // (signed as a single Mach-O) are both treated as nested entries
-            // — they'll appear in CodeResources as cdhash entries.
-            if (S_ISDIR(st.st_mode)) {
-                if (!looksLikeBundleSuffix(n)) {
-                    throw std::runtime_error{
-                            "non-bundle directory '" + std::string{root} + "/"
-                            + n + "' under " + bundle.contentsRoot
-                            + " is not supported (expected *.framework, "
-                              "*.app, *.xpc, or *.bundle)"};
-                }
-                out.push_back(std::string{root} + "/" + n);
-            } else if (S_ISREG(st.st_mode)) {
-                out.push_back(std::string{root} + "/" + n);
-            }
-        }
+        struct stat st{};
+        if (stat(dirPath.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) continue;
+        findNestedIn(bundle.contentsRoot, root, out);
     }
     return out;
 }
