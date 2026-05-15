@@ -27,12 +27,12 @@ int main(int argc, char **argv) {
     CLI11_PARSE(app, argc, argv);
 
     if (app.got_subcommand("check-requires-signature")) {
-        return Commands::checkRequiresSignature(file);
+        return SigTool::Commands::checkRequiresSignature(file);
     } else if (app.got_subcommand("show-arch")) {
-        return Commands::showArch(file);
+        return SigTool::Commands::showArch(file);
     }
 
-    Commands::SignOptions options{
+    SigTool::Commands::SignOptions options{
             .filename = file,
             .identifier = identifier,
             .entitlements = entitlements,
@@ -40,11 +40,11 @@ int main(int argc, char **argv) {
     };
 
     if (app.got_subcommand("size")) {
-        return Commands::showSize(options);
+        return SigTool::Commands::showSize(options);
     } else if (app.got_subcommand("generate")) {
-        return Commands::generate(options);
+        return SigTool::Commands::generate(options);
     } else if (app.got_subcommand("inject")) {
-        return Commands::inject(options);
+        return SigTool::Commands::inject(options);
     }
 
     return 0;

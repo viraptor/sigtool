@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <cstring>
-#include <filesystem>
 #include <memory>
 #include <string>
 #include <sstream>
@@ -16,6 +15,8 @@
 #include "der.h"
 
 extern char **environ;
+
+namespace SigTool {
 
 constexpr const unsigned int pageSize = 4096;
 
@@ -42,12 +43,16 @@ static Hash hashBlob(const std::shared_ptr<Blob> &blob) {
     return Hash{buf.str()};
 }
 
-std::string cpuTypeName(uint32_t cpuType) {
-    switch (cpuType) {
+std::string cpuTypeName(uint32_t cpuType, uint32_t cpuSubType) {
+    switch (cpuType | cpuSubType) {
         case CPUTYPE_X86_64:
             return "x86_64";
+        case CPUTYPE_X86_64H:
+            return "x86_64h";
         case CPUTYPE_ARM64:
             return "arm64";
+        case CPUTYPE_ARM64E:
+            return "arm64e";
         default:
             throw std::runtime_error{std::string{"Unsupported cpu type"} + std::to_string(cpuType)};
     }
@@ -70,7 +75,7 @@ int Commands::showArch(const std::string &file) {
     MachOList test{file};
 
     for (const auto &macho : test.machos) {
-        std::cout << cpuTypeName(macho->header.cpuType) << std::endl;
+        std::cout << cpuTypeName(macho->header.cpuType, macho->header.cpuSubType) << std::endl;
     }
 
     return 0;
@@ -173,7 +178,7 @@ int Commands::showSize(const SignOptions &options) {
     MachOList list{options.filename};
     for (const auto &macho : list.machos) {
         auto sb = signMachO(options, macho);
-        std::cout << cpuTypeName(macho->header.cpuType) << " " << sb.length() << std::endl;
+        std::cout << cpuTypeName(macho->header.cpuType, macho->header.cpuSubType) << " " << sb.length() << std::endl;
     }
 
     return 0;
@@ -206,7 +211,7 @@ int Commands::inject(const SignOptions &options) {
             throw std::runtime_error{
                     std::string{"allocated size too small: need "}
                     + std::to_string(sb.length())
-                    + std::string{"but have "}
+                    + std::string{" but have "}
                     + std::to_string(codeSignature->data.dataSize)
             };
         }
@@ -242,10 +247,25 @@ static void freeArgs(char **spawnArgs, std::vector<std::string>::size_type size)
     free(spawnArgs);
 }
 
+static std::string inferIdentifier(const std::string& filename) {
+    // basename / basename_r are awkward to use. We don't need the exact
+    // meaning of basename.
+
+    const auto slash = filename.find_last_of('/');
+    if (slash == std::string::npos) {
+        return filename;
+    }
+    std::string basename = filename.substr(slash + 1);
+    if (basename.empty()) {
+        return filename;
+    }
+    return basename;
+}
+
 int Commands::codesign(const CodesignOptions &options, const std::string &filename) {
     std::string identifier = options.identifier;
     if (identifier.empty()) {
-        identifier = std::filesystem::path(filename).filename();
+        identifier = inferIdentifier(filename);
     }
     // Parse and discovery arguments
     MachOList list{filename};
@@ -268,8 +288,10 @@ int Commands::codesign(const CodesignOptions &options, const std::string &filena
                 .generateEntitlementDER = options.generateEntitlementDER,
         }, macho);
 
-        arguments.emplace_back("-a");
-        arguments.push_back(cpuTypeName(macho->header.cpuType));
+
+        arguments.emplace_back("-A");
+        arguments.emplace_back(std::to_string(macho->header.cpuType));
+        arguments.emplace_back(std::to_string(macho->header.cpuSubType & ~CPU_SUBTYPE_MASK));
 
         size_t len = sb.length();
         len = ((len + 0xf) & ~0xf) + 1024; // align and pad
@@ -277,8 +299,8 @@ int Commands::codesign(const CodesignOptions &options, const std::string &filena
     }
 
     // Make temporary name
-    char *tempfileName = strdup((filename + "XXXXXX").c_str());
-    int tempfile = mkstemp(tempfileName);
+    std::unique_ptr<char, decltype(&std::free)> tempfileName { strdup((filename + "XXXXXX").c_str()), std::free };
+    int tempfile = mkstemp(tempfileName.get());
 
     // Preserve mode
     struct stat sourceFileStat{};
@@ -290,9 +312,8 @@ int Commands::codesign(const CodesignOptions &options, const std::string &filena
         throw std::runtime_error{"chmod temporary file"};
     }
 
-    std::string tempfileFdPath = std::string{"/dev/fd/"} + std::to_string(tempfile);
     arguments.emplace_back("-o");
-    arguments.emplace_back(tempfileFdPath);
+    arguments.emplace_back(std::string(tempfileName.get()));
 
     // codesign_allocate
     pid_t pid;
@@ -309,11 +330,16 @@ int Commands::codesign(const CodesignOptions &options, const std::string &filena
     };
 
     int codesign_status;
-    if (waitpid(pid, &codesign_status, 0) <= 0) {
+    pid_t waitpid_result;
+    do {
+        waitpid_result = waitpid(pid, &codesign_status, 0);
+    } while (waitpid_result == -1 && errno == EINTR);
+    if (waitpid_result == -1) {
         throw std::runtime_error{
                 std::string{"codesign waitpid failed: "} + strerror(errno)
         };
     }
+
     freeArgs(spawnArgs, arguments.size());
 
     if (!WIFEXITED(codesign_status) || WEXITSTATUS(codesign_status) != 0) {
@@ -326,16 +352,17 @@ int Commands::codesign(const CodesignOptions &options, const std::string &filena
 
     // inject
     Commands::inject(SignOptions{
-            .filename = tempfileName,
+            .filename = std::string(tempfileName.get()),
             .identifier = identifier,
             .entitlements = options.entitlements,
             .generateEntitlementDER = options.generateEntitlementDER,
     });
 
     // rename temp file to output
-    if (rename(tempfileName, filename.c_str()) != 0) {
+    if (rename(tempfileName.get(), filename.c_str()) != 0) {
         throw std::runtime_error{"rename failed"};
     }
 
     return 0;
 }
+};

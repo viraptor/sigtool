@@ -8,9 +8,9 @@ int main(int argc, char **argv) {
     bool force = false;
     bool generateEntitlementDER = false;
     std::vector<std::string> files;
-    app.add_option("-s", identity, "Code signing identity")->required();
+    app.add_option("-s,--sign", identity, "Code signing identity")->required();
     app.add_option("-i,--identifier", identifier, "File identifier");
-    app.add_flag("-f", force, "Replace any existing signatures");
+    app.add_flag("-f,--force", force, "Replace any existing signatures");
     app.add_option("--entitlements", entitlements, "Entitlements plist");
     app.add_flag("--generate-entitlement-der", generateEntitlementDER,
                  "Also embed DER-encoded entitlements");
@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
                 std::string{"Only ad-hoc identities supported, requested: '"} + identity + "'"};
     }
 
-    Commands::CodesignOptions options{
+    SigTool::Commands::CodesignOptions options{
             .identifier = identifier,
             .entitlements = entitlements,
             .force = force,
@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
     };
 
     for (const auto &f : files) {
-        Commands::codesign(options, f);
+	SigTool::Commands::codesign(options, f);
     }
 
     return 0;
