@@ -149,7 +149,7 @@ Bytes encValue(plist_t v) {
 
 } // namespace
 
-std::string encodeEntitlementsDER(const std::string &plistXml) {
+std::vector<std::byte> encodeEntitlementsDER(const std::string &plistXml) {
     plist_t plist = nullptr;
     plist_err_t err = plist_from_xml(plistXml.data(),
                                      static_cast<uint32_t>(plistXml.size()),
@@ -165,5 +165,5 @@ std::string encodeEntitlementsDER(const std::string &plistXml) {
 
     Bytes der = encApplication16(encInt(1), encContext16(encDictBody(plist)));
     plist_free(plist);
-    return std::string{der.begin(), der.end()};
+    return der;
 }
