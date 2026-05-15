@@ -101,9 +101,9 @@ struct Entitlements : public Blob {
 };
 
 struct EntitlementsDER : public Blob {
-    std::vector<std::byte> entitlements;
+    std::vector<unsigned char> entitlements;
 
-    explicit EntitlementsDER(std::vector<std::byte> entitlements)
+    explicit EntitlementsDER(std::vector<unsigned char> entitlements)
             : entitlements{std::move(entitlements)} {}
 
     CSSlot slotType() override {

@@ -14,20 +14,23 @@
 
 namespace {
 
-using Bytes = std::vector<std::byte>;
+using Bytes = std::vector<unsigned char>;
 
 // Wrap one or more body parts in an ASN.1 TLV header (tag/length) using
 // OpenSSL's ASN1_put_object. The parts are concatenated in order to form
 // the body. xclass selects universal/application/context/private.
 template <typename... Parts>
 Bytes makeTLV(int constructed, int tag, int xclass, const Parts &...parts) {
-    int bodyLen = static_cast<int>((size_t{0} + ... + parts.size()));
+    size_t bodyLenSum = 0;
+    using expander = int[];
+    (void)expander{0, (bodyLenSum += parts.size(), 0)...};
+    int bodyLen = static_cast<int>(bodyLenSum);
     int total = ASN1_object_size(constructed, bodyLen, tag);
     if (total < 0) throw std::runtime_error{"ASN1_object_size failed"};
     Bytes out(total);
-    auto *p = reinterpret_cast<unsigned char *>(out.data());
+    unsigned char *p = out.data();
     ASN1_put_object(&p, constructed, bodyLen, tag, xclass);
-    ((std::memcpy(p, parts.data(), parts.size()), p += parts.size()), ...);
+    (void)expander{0, (std::memcpy(p, parts.data(), parts.size()), p += parts.size(), 0)...};
     return out;
 }
 
@@ -39,7 +42,7 @@ Bytes i2dOwned(T *obj, Encoder encoder, Freer freer) {
     int n = encoder(obj, &p);
     freer(obj);
     if (n < 0) throw std::runtime_error{"i2d encoder failed"};
-    auto *bp = reinterpret_cast<std::byte *>(p);
+    auto *bp = reinterpret_cast<unsigned char *>(p);
     Bytes out(bp, bp + n);
     OPENSSL_free(p);
     return out;
@@ -102,7 +105,10 @@ Bytes encDictBody(plist_t d) {
     free(iter);
 
     std::sort(pairs.begin(), pairs.end(),
-              [](const auto &a, const auto &b) { return a.first < b.first; });
+              [](const std::pair<std::string, plist_t> &a,
+                 const std::pair<std::string, plist_t> &b) {
+                  return a.first < b.first;
+              });
 
     Bytes body;
     for (auto &p : pairs) {
@@ -149,7 +155,7 @@ Bytes encValue(plist_t v) {
 
 } // namespace
 
-std::vector<std::byte> encodeEntitlementsDER(const std::string &plistXml) {
+std::vector<unsigned char> encodeEntitlementsDER(const std::string &plistXml) {
     plist_t plist = nullptr;
     plist_err_t err = plist_from_xml(plistXml.data(),
                                      static_cast<uint32_t>(plistXml.size()),
