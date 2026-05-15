@@ -11,8 +11,8 @@ SIGTOOL_OBJS := $(SIGTOOL_SRCS:.cpp=.o)
 CODESIGN_SRCS = codesign.cpp $(COMMON_SRCS)
 CODESIGN_OBJS := $(CODESIGN_SRCS:.cpp=.o)
 
-CPPFLAGS := -I vendor $(shell $(PKG_CONFIG) --cflags openssl)
-LDFLAGS := $(shell $(PKG_CONFIG) --libs openssl)
+CPPFLAGS := -I vendor $(shell $(PKG_CONFIG) --cflags openssl libplist-2.0)
+LDFLAGS := $(shell $(PKG_CONFIG) --libs openssl libplist-2.0)
 
 sigtool: $(SIGTOOL_OBJS)
 	$(CXX) $(LDFLAGS) -o $@ $^

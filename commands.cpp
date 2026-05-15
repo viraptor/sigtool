@@ -150,18 +150,16 @@ static SuperBlob signMachO(
 
     // optional blob: entitlements
     if (!options.entitlements.empty()) {
-        auto entitlements = std::make_shared<Entitlements>(readFile(options.entitlements));
+        std::string plistXml = readFile(options.entitlements);
+        auto entitlements = std::make_shared<Entitlements>(plistXml);
         codeDirectory->setSpecialHash(entitlements->slotType(), hashBlob(entitlements));
         sb.blobs.push_back(entitlements);
 
-        // TODO: BER formatted entitlements
-        /*
-        DERMap m{};
-        m.setBoolean("com.apple.security.hypervisor", true);
-        auto entitlementsDer = std::make_shared<EntitlementsDER>(m.toDER());
-        codeDirectory->setSpecialHash(entitlementsDer->slotType(), hashBlob(entitlementsDer));
-        sb.blobs.push_back(entitlementsDer);
-        */
+        if (options.generateEntitlementDER) {
+            auto entitlementsDer = std::make_shared<EntitlementsDER>(encodeEntitlementsDER(plistXml));
+            codeDirectory->setSpecialHash(entitlementsDer->slotType(), hashBlob(entitlementsDer));
+            sb.blobs.push_back(entitlementsDer);
+        }
     }
 
     // blob: empty signature slot
@@ -267,6 +265,7 @@ int Commands::codesign(const CodesignOptions &options, const std::string &filena
                 .filename = filename,
                 .identifier = identifier,
                 .entitlements = options.entitlements,
+                .generateEntitlementDER = options.generateEntitlementDER,
         }, macho);
 
         arguments.emplace_back("-a");
@@ -330,6 +329,7 @@ int Commands::codesign(const CodesignOptions &options, const std::string &filena
             .filename = tempfileName,
             .identifier = identifier,
             .entitlements = options.entitlements,
+            .generateEntitlementDER = options.generateEntitlementDER,
     });
 
     // rename temp file to output

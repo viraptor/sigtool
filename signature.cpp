@@ -161,11 +161,11 @@ size_t Entitlements::length() {
 }
 
 void EntitlementsDER::emit(std::ostream &os) {
-    EmitBE::writeUInt32(os, CSMAGIC_EMBEDDED_ENTITLEMENTS);
+    EmitBE::writeUInt32(os, CSMAGIC_EMBEDDED_ENTITLEMENTS_DER);
     EmitBE::writeUInt32(os, length());
-    os << entitlements;
+    os.write(entitlements.data(), entitlements.size());
 }
 
 size_t EntitlementsDER::length() {
-    return entitlements.length() + 8;
+    return entitlements.size() + 8;
 }
